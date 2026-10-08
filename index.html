@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Plakat-Scanner</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<style>
+  :root { font-family: system-ui, -apple-system, sans-serif; color: #111827; background: #f1f5f9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; padding: 12px 12px calc(24px + env(safe-area-inset-bottom)); }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .logo { width: 42px; height: 42px; border-radius: 12px; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  h1 { font-size: 1.15rem; margin: 0; }
+  header p { margin: 2px 0 0; font-size: .8rem; color: #64748b; }
+  .card { background: #fff; border-radius: 16px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .step { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin: 0 0 8px; }
+  label { display: block; font-size: .75rem; color: #475569; margin: 8px 0 4px; font-weight: 600; }
+  input[type=text], input[type=date], input[type=time], input[type=url], textarea, select {
+    width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 15px; background: #fff; color: inherit;
+  }
+  input:focus, textarea:focus, select:focus { outline: 2px solid #0f172a; border-color: #0f172a; }
+  textarea { resize: vertical; }
+  .dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px;
+    border: 2px dashed #94a3b8; border-radius: 14px; background: #f8fafc; cursor: pointer; text-align: center; color: #64748b; padding: 12px; }
+  .dropzone img { max-width: 100%; max-height: 320px; border-radius: 10px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .btn { display: inline-block; padding: 11px 16px; border-radius: 11px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-dark { background: #0f172a; color: #fff; }
+  .btn-light { background: #e2e8f0; color: #0f172a; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .progress { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .progress > div { height: 100%; background: #0f172a; width: 0; transition: width .2s; }
+  .hint { font-size: .75rem; color: #64748b; margin-top: 8px; line-height: 1.4; }
+  .notice { background: #fef3c7; color: #92400e; border-radius: 10px; padding: 8px 10px; font-size: .78rem; margin-top: 10px; }
+  .ok { background: #dcfce7; color: #166534; }
+  .err { background: #fee2e2; color: #991b1b; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .switch { display: flex; align-items: center; gap: 8px; font-size: .85rem; margin-top: 10px; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-size: .8rem; color: #64748b; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 10px; overflow-x: auto; font-size: .7rem; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">📅</div>
+    <div>
+      <h1>Plakat-Scanner</h1>
+      <p>Foto → Termin. Läuft komplett auf deinem Gerät.</p>
+    </div>
+  </header>
+
+  <div class="card">
+    <p class="step">1. Foto aufnehmen / auswählen</p>
+    <div class="dropzone" id="dropzone">
+      <div style="font-size:34px">📷</div>
+      <p style="margin:6px 0 0">Tippen für Kamera oder Foto</p>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden" />
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-dark" id="ocrBtn" disabled>Text erkennen (OCR)</button>
+      <button class="btn btn-light" id="clearBtn">Zurücksetzen</button>
+    </div>
+    <div class="progress hidden" id="progress"><div id="progressBar"></div></div>
+    <div id="ocrStatus"></div>
+  </div>
+
+  <div class="card">
+    <p class="step">2. Angaben prüfen und anpassen</p>
+    <label for="fTitle">Titel</label>
+    <input type="text" id="fTitle" placeholder="z. B. Konzert im Kulturhaus" />
+    <label for="fDate">Datum</label>
+    <input type="date" id="fDate" />
+    <div class="switch"><input type="checkbox" id="fAllDay" /><label for="fAllDay" style="margin:0">Ganztägig (keine Uhrzeit)</label></div>
+    <div class="row" id="timeRow">
+      <div><label for="fStart">Beginn</label><input type="time" id="fStart" /></div>
+      <div><label for="fEnd">Ende (optional)</label><input type="time" id="fEnd" /></div>
+    </div>
+    <label for="fLocation">Ort</label>
+    <input type="text" id="fLocation" placeholder="Veranstaltungsort, Adresse" />
+    <label for="fUrl">Link (optional)</label>
+    <input type="url" id="fUrl" placeholder="https://…" />
+    <label for="fDesc">Beschreibung</label>
+    <textarea id="fDesc" rows="3" placeholder="Details, Eintritt, Veranstalter …"></textarea>
+    <label for="fAlarm">Erinnerung</label>
+    <select id="fAlarm">
+      <option value="0">Keine</option>
+      <option value="30">30 Minuten vorher</option>
+      <option value="60" selected>1 Stunde vorher</option>
+      <option value="1440">1 Tag vorher</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <p class="step">3. In Kalender übernehmen</p>
+    <div class="actions">
+      <a class="btn btn-dark" id="icsBtn" style="text-decoration:none" download="termin.ics">Als .ics speichern</a>
+      <a class="btn btn-light" id="gcalBtn" target="_blank" rel="noreferrer" style="text-decoration:none">Google Kalender</a>
+    </div>
+    <p class="hint">Die .ics-Datei öffnet sich in Android Kalender, Google Kalender und Outlook. “Google Kalender” öffnet den Termin direkt vorbefüllt im Browser.</p>
+    <details><summary>ICS-Vorschau</summary><pre id="icsPreview"></pre></details>
+  </div>
+
+  <div class="card">
+    <p class="step">Installation als App (einmalig)</p>
+    <ol style="font-size:.85rem; padding-left:18px; margin:0; line-height:1.6">
+      <li>Öffne <b>briet.github.io/plakat-scanner</b> in Chrome auf deinem Handy.</li>
+      <li>Öffne die Adresse in Chrome auf deinem Handy.</li>
+      <li>Menü ⋮ → “Zum Startbildschirm hinzufügen” / “Installieren”. Ab dann startet die App wie eine native App über das Launcher-Symbol.</li>
+    </ol>
+    <p class="hint">Wenn du die App im Launcher startest, kannst du direkt über die Kamera fotografieren – ohne den Umweg über einen Chat.</p>
+    <details><summary>Optional: Volle Offline-PWA (manifest.json + sw.js)</summary>
+      <p class="hint">Dafür im gleichen Ordner wie die HTML-Datei zwei Dateien anlegen:</p>
+      <p class="hint">manifest.json:</p>
+      <pre>{
+  "name": "Plakat-Scanner",
+  "short_name": "Plakat",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f172a",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
+}</pre>
+      <p class="hint">sw.js:</p>
+      <pre>self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.open('v1').then(async c => {
+    const hit = await c.match(e.request);
+    if (hit) return hit;
+    const res = await fetch(e.request);
+    if (res.ok && e.request.url.startsWith(self.location.origin)) c.put(e.request, res.clone());
+    return res;
+  }));
+});</pre>
+      <p class="hint">Und im &lt;head&gt; ergänzen:</p>
+      <pre>&lt;link rel="manifest" href="manifest.json"&gt;
+&lt;script&gt;
+if ('serviceWorker' in navigator &amp;&amp; location.protocol === 'https:')
+  navigator.serviceWorker.register('sw.js');
+&lt;/script&gt;</pre>
+    </details>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const MONTHS = { januar:1, februar:2, märz:3, maerz:3, april:4, mai:5, juni:6, juli:7, august:8, september:9, oktober:10, november:11, dezember:12 };
+let photoURL = null;
+
+const dz = $('dropzone'), fi = $('fileInput');
+dz.onclick = () => fi.click();
+dz.ondragover = e => { e.preventDefault(); };
+dz.ondrop = e => { e.preventDefault(); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); };
+fi.onchange = () => fi.files[0] && load(fi.files[0]);
+
+function load(file) {
+  if (photoURL) URL.revokeObjectURL(photoURL);
+  photoURL = URL.createObjectURL(file);
+  dz.innerHTML = '';
+  const img = new Image();
+  img.src = photoURL;
+  dz.appendChild(img);
+  $('ocrBtn').disabled = false;
+  setStatus('', '');
+}
+
+function setStatus(msg, cls) {
+  $('ocrStatus').innerHTML = msg ? `<div class="notice ${cls}">${msg}</div>` : '';
+}
+
+$('clearBtn').onclick = () => {
+  if (photoURL) URL.revokeObjectURL(photoURL);
+  photoURL = null;
+  dz.innerHTML = '<div style="font-size:34px">📷</div><p style="margin:6px 0 0">Tippen für Kamera oder Foto</p>';
+  fi.value = '';
+  $('ocrBtn').disabled = true;
+  setStatus('', '');
+};
+
+async function ensureTesseract() {
+  if (window.Tesseract) return window.Tesseract;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  return window.Tesseract;
+}
+
+$('ocrBtn').onclick = async () => {
+  if (!photoURL) return;
+  $('ocrBtn').disabled = true;
+  $('progress').classList.remove('hidden');
+  setStatus('OCR wird geladen …', '');
+  try {
+    const T = await ensureTesseract();
+    setStatus('Text wird erkannt …', '');
+    const { data } = await T.recognize(photoURL, 'deu+eng', {
+      logger: m => { if (m.status === 'recognizing text') $('progressBar').style.width = Math.round(m.progress * 100) + '%'; }
+    });
+    applyParse(data.text || '');
+    setStatus('Erkannt. Bitte Angaben prüfen.', 'ok');
+  } catch (e) {
+    setStatus('OCR nicht verfügbar (keine Internetverbindung oder Vorschau-Sandbox). Angaben können manuell eingetragen werden. Nach dem Hosten der Datei mit Internetzugang funktioniert die Texterkennung.', 'err');
+  }
+  $('ocrBtn').disabled = false;
+  $('progress').classList.add('hidden');
+  $('progressBar').style.width = '0';
+};
+
+function applyParse(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const joined = lines.join('\n');
+
+  // Titel: erste kurze, aussagekräftige Zeile
+  if (!$('fTitle').value) {
+    const cand = lines.find(l => l.length >= 3 && l.length <= 60 && !/\d{2}[.,]\d{2}/.test(l)) || '';
+    $('fTitle').value = cand;
+  }
+
+  // Datum: 24.03.2026, 24. März 2026, 24.3.26
+  if (!$('fDate').value) {
+    let m = joined.match(/(\d{1,2})\.\s*(\d{1,2})\.?\s*(\d{4}|\d{2})/);
+    if (!m) {
+      const wm = joined.match(/(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni~Juli|August|September|Oktober|November|Dezember)\w*\s*(\d{4})?/i);
+      if (wm) {
+        const mo = MONTHS[wm[2].toLowerCase()];
+        const yr = wm[3] || new Date().getFullYear();
+        m = [null, wm[1], String(mo), String(yr)];
+      }
+    }
+    if (m) {
+      const d = String(m[1]).padStart(2, '0'), mo = String(m[2]).padStart(2, '0');
+      let yr = m[3]; if (yr.length === 2) yr = '20' + yr;
+      $('fDate').value = `${yr}-${mo}-${d}`;
+    }
+  }
+
+  // Uhrzeiten: 19:30, 19.30 Uhr, 19 Uhr
+  if (!$('fStart').value) {
+    const tm = joined.match(/(?:um|ab)?\s*(\d{1,2})[:.](\d{2})\s*(?:Uhr)?/i) || joined.match(/(?:um|ab)\s*(\d{1,2})\s*Uhr/i);
+    if (tm) $('fStart').value = `${String(tm[1]).padStart(2,'0')}:${tm[2] || '00'}`;
+  }
+  if (!$('fEnd').value) {
+    const ranges = joined.match(/(\d{1,2})[:.](\d{2})\s*(?:–|-|bis)\s*(\d{1,2})[:.](\d{2})/);
+    if (ranges) $('fEnd').value = `${String(ranges[3]).padStart(2,'0')}:${ranges[4]}`;
+  }
+
+  // Ort: Zeile mit typischen Schlüsselwörtern
+  if (!$('fLocation').value) {
+    const loc = lines.find(l => /(saal|halle|straße|str\.|platz|kirche|theater|club|zentrum|haus|raum|garten|stadthalle|café|keller|pub|arena|park)/i.test(l));
+    if (loc) $('fLocation').value = loc.replace(/^[\W_]+|[\W_]+$/g, '').slice(0, 80);
+  }
+
+  // URL
+  if (!$('fUrl').value) {
+    const u = joined.match(/https?:\/\/[^\s]+/i);
+    if (u) $('fUrl').value = u[0];
+  }
+
+  // Beschreibung: Restzeilen ohne Datum/URL
+  if (!$('fDesc').value) {
+    const desc = lines.filter(l =>
+      l !== $('fTitle').value && l !== $('fLocation').value &&
+      !/https?:\/\//i.test(l) && !/(\d{1,2})\.\s*(\d{1,2})/.test(l)
+    ).slice(0, 6).join('\n');
+    $('fDesc').value = desc;
+  }
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function icsDate(date, time, addH) {
+  const d = new Date(`${date}T${time || '00:00'}`);
+  if (isNaN(d)) return null;
+  if (addH) d.setHours(d.getHours() + addH);
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+}
+function esc(s) { return (s || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n'); }
+
+function buildICS() {
+  const title = $('fTitle').value.trim(), date = $('fDate').value;
+  const allDay = $('fAllDay').checked, start = $('fStart').value, end = $('fEnd').value, alarm = +$('fAlarm').value;
+  if (!title || !date) return null;
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Plakat-Scanner//DE','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    `UID:${Date.now()}@plakat-scanner`];
+  if (allDay) {
+    L.push(`DTSTART;VALUE=DATE:${date.replace(/-/g,'')}`);
+    const d = new Date(date + 'T00:00'); d.setDate(d.getDate() + 1);
+    L.push(`DTEND;VALUE=DATE:${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`);
+  } else {
+    const s = icsDate(date, start); if (!s) return null;
+    L.push(`DTSTART:${s}`);
+    const e = end ? icsDate(date, end) : (start ? icsDate(date, start, 2) : null);
+    if (e) L.push(`DTEND:${e}`);
+  }
+  L.push(`SUMMARY:${esc(title)}`);
+  if ($('fLocation').value.trim()) L.push(`LOCATION:${esc($('fLocation').value.trim())}`);
+  const details = [$('fDesc').value.trim(), $('fUrl').value.trim() && 'Link: ' + $('fUrl').value.trim()].filter(Boolean).join('\n');
+  if (details) L.push(`DESCRIPTION:${esc(details)}`);
+  if (alarm > 0) L.push('BEGIN:VALARM', `TRIGGER:-PT${alarm}M`, 'ACTION:DISPLAY', 'DESCRIPTION:Erinnerung', 'END:VALARM');
+  L.push('END:VEVENT', 'END:VCALENDAR');
+  return L.join('\r\n');
+}
+
+function update() {
+  $('timeRow').style.display = $('fAllDay').checked ? 'none' : 'flex';
+  const ics = buildICS();
+  const ok = !!ics;
+  $('icsBtn').style.pointerEvents = ok ? 'auto' : 'none';
+  $('icsBtn').style.opacity = ok ? 1 : .45;
+  $('gcalBtn').style.pointerEvents = ok && !$('fAllDay').checked && $('fStart').value ? 'auto' : 'none';
+  $('gcalBtn').style.opacity = ok && !$('fAllDay').checked && $('fStart').value ? 1 : .45;
+  $('icsPreview').textContent = ics || 'Titel und Datum ausfüllen.';
+  if (ok) {
+    $('icsBtn').href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+    $('icsBtn').setAttribute('download', (title || 'termin') + '.ics');
+    if (!$('fAllDay').checked && $('fStart').value) {
+      const s = icsDate($('fDate').value, $('fStart').value);
+      const e = $('fEnd').value ? icsDate($('fDate').value, $('fEnd').value) : icsDate($('fDate').value, $('fStart').value, 2);
+      const p = new URLSearchParams({ action: 'TEMPLATE', text: $('fTitle').value, dates: s + '/' + e });
+      if ($('fLocation').value) p.set('location', $('fLocation').value);
+      const det = [$('fDesc').value, $('fUrl').value].filter(Boolean).join('\n');
+      if (det) p.set('details', det);
+      $('gcalBtn').href = 'https://calendar.google.com/calendar/render?' + p.toString();
+    }
+  }
+}
+['fTitle','fDate','fStart','fEnd','fAllDay','fLocation','fDesc','fUrl','fAlarm'].forEach(id => {
+  $(id).addEventListener('input', update);
+  $(id).addEventListener('change', update);
+});
+update();
+</script>
+<script>
+if ("serviceWorker" in navigator && location.protocol === "https:")
+  navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
